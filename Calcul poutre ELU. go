@@ -1,0 +1,227 @@
+/*
+Created on Mar Jui 00 20:23:57 2018
+
+@author: Ahmed Miske S. M.
+*/
+
+package main
+
+import(
+       "fmt"
+       "math"
+       )
+
+var (
+     // get
+     b float64
+     h float64
+     d float64
+
+     fc28 float64
+     fe float64
+
+     Mu float64
+     
+     //calcul
+     fbu float64
+     ftj float64
+
+     hmin float64
+     omicro_bu float64
+     eps_l  float64
+
+     alpha_l float64
+     omicro_l float64
+
+     //
+)
+
+const(
+	 omicro_AB float64 = 0.186 
+     alpha_AB float64 = 0.259 
+
+     //Es = 2 * math.Pow(10, 5)
+     
+)
+
+
+func organigram() {
+
+    //b, h, d, Mu, _, fe := get_values()
+    b, h, d, fbu, ftj, fe, hmin, omicro_bu, alpha_l, eps_l, omicro_l := calcul_values()
+
+    var alpha_u float64
+    var eps_st float64
+    var eps_sc float64
+    var esp_l float64
+    var Amin float64
+    var Au float64
+    var As float64
+    var sigma_st float64
+    var sigma_sc float64
+
+    var zu float64
+
+    y1 := alpha_l*d 
+    z1 := d*(1-0.4*alpha_l) 
+    Mu1 := 0.8*alpha_l*b*d*fbu*z1 
+    Mu2 := Mu-Mu1
+    
+    p4 := math.Pow(10,4)
+    Es := 2*math.Pow(10,5)
+
+    // SWITCHS
+
+	var Hyp0 bool = omicro_bu <= omicro_l
+
+	if (Hyp0==true) {
+    	fmt.Println(" A' = 0 (Acier comprime n'est pas necessaire !")  
+    
+   	 c0 := 2*omicro_bu 
+	    if c0 > 1{
+	       fmt.Println(" Augmenter la valeur de h svp !") 
+	       fmt.Printf(" Valeur min. de h = %f [m]\n", hmin)  
+	    }else{
+    	   c1 := math.Sqrt(1-c0)  
+	       alpha_u = 1.25*(1-c1) 
+    	   zu = d*(1-0.4*alpha_u) 
+        }
+
+	    var Hyp01 bool = (alpha_u <= alpha_AB)
+    	if Hyp01==true{
+        	
+        	fmt.Println(" Pivot A (sigma_st en domaine elastique)")
+
+	        eps_st = 10/1000 
+	        sigma_st = fe/1.15  
+	        //p4 :=math.Pow(10,4) 
+	        Au = Mu*p4/(sigma_st*zu) 
+    	    Amin = 0.23*b*d*p4*ftj/fe 
+   	    	As = math.Max(Au,Amin) 
+    	    fmt.Println("As = %f [cm2]\n", As)
+
+  		}else{
+    	    fmt.Println(" Pivot B\n")
+  	        eps_bc := 3.5/1000  
+    	    eps_st = eps_bc*(1-alpha_u)/alpha_u 
+        	esp_l = fe/(1.15*Es) 
+
+	        var Hyp012 bool = (eps_st>=eps_l) 
+    	    if (Hyp012==true){
+        	    sigma_st = fe/1.15 
+            	fmt.Println(" sigma_st = fe/1.15    (domaine Plastique)")
+   	    	}else{
+ 	            sigma_st = Es*eps_st 
+    	        fmt.Println(" sigma_st = Es*eps_st  (domaine Elastique)")
+            }
+
+ 	        Au = Mu*p4/(sigma_st*zu) 
+            Amin = 0.23*b*d*p4*ftj/fe  
+            As = math.Max(Au,Amin) 
+            fmt.Printf(" As = %f [cm2] \n", As)
+        }
+
+    }else{  // Hyp0==0
+        sigma_st = fe/1.15 
+
+        var Hyp02 bool = (Mu2<=0.4*Mu) 
+        if (Hyp02==true){
+            Au = (Mu1*p4/(z1*sigma_st))+Mu2*p4/((d-0.1*h)*sigma_st) 
+            Amin = 0.23*b*d*p4*ftj/fe 
+            As = math.Max(Au,Amin) 
+            fmt.Printf(" As = %f [cm2]  :Armature tendue totale\n", As) 
+            eps_sc = (3.5/1000)*(y1-0.1*h)/y1  
+
+            var Hyp021 bool = (eps_sc<=eps_l) 
+            if (Hyp021==true){
+                sigma_sc = Es*eps_sc 
+            }else{
+                sigma_sc = fe/1.15 
+            }
+
+            Asc := Mu2*p4/(sigma_sc*(d-0.1*h)) 
+            fmt.Printf(" Asc = %f [cm2] :Armature Comprimee totale\n", Asc)
+
+        }else{
+            fmt.Println(" Redimensionner la section du coffrage !")
+            c3 := alpha_l*fbu*(1-0.4*alpha_l) 
+            bh2min := 25*Mu/(27*c3) 
+            hrbmin := math.Sqrt(bh2min) 
+            cm2hrb := hrbmin*p4 
+            fmt.Printf(" Il faut assurer que: La racine de b multiplier par h soit superieure à")
+            fmt.Printf("%f [m2] ou %f [cm2] ", hrbmin, cm2hrb)
+        }
+    }
+}
+
+
+func calcul_values() (float64, float64, float64, float64, float64, float64, float64, float64, float64, float64, float64) {
+
+	b, h, d, Mu, fc28, fe := get_values()
+
+	fbu = 0.85*fc28/1.5  
+    ftj = 0.6+0.06*fc28
+
+	hmin = math.Sqrt(2*Mu/(b*fbu))/0.9 
+
+	omicro_bu = Mu/(b*d*d*fbu)
+
+
+    //Valeurs limittes :
+    
+    switch fe {
+        case 500:
+        	alpha_l = 0.617 
+            omicro_l = 0.372 
+        case 400:
+        	alpha_l = 0.617 
+            omicro_l = 0.372 
+        case 235:
+        	alpha_l = 0.774 
+            omicro_l = 0.427
+        case 215:
+        	alpha_l = 0.769 
+            omicro_l = 0.432
+        default:
+        	alpha_l = 0.617 
+            omicro_l = 0.372 
+    }
+
+    //  
+
+    return b, h, d, fbu, ftj, fe, hmin, omicro_bu, alpha_l, eps_l, omicro_l 
+
+}
+
+
+
+func get_values() (float64, float64, float64, float64, float64, float64) {  //(b, h, d, Mu, fc28, fe) float64 {
+
+
+	fmt.Print("Donner la valeur de b en [m] :")
+	fmt.Scanf("%f", &b)
+
+	fmt.Print("Donner la valeur de h en [m] :")
+	fmt.Scanf("%f", &h)
+
+	fmt.Print("Donner la valeur de d en [m] :")
+	fmt.Scanf("%f", &d)
+
+	fmt.Print("Donner la valeur de Mu en [N.m] :")
+	fmt.Scanf("%f", &Mu)
+
+    fmt.Print("Donner la valeur de fc28 en [MPa] :")
+	fmt.Scanf("%f", &fc28)
+
+	fmt.Print("Donner la valeur de fe en [m] :")
+	fmt.Scanf("%f", &fe)
+
+	fmt.Printf("b = %f \nh = %f \nd = %f \nMu = %f \nfc28 = %f \nfe = %f \n", b, h, d, Mu, fc28, fe)
+    return b, h, d, Mu, fc28, fe 
+
+}
+
+func main() {
+    
+    organigram()
+}
